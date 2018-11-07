@@ -8,24 +8,26 @@ import subprocess
 class Inparanoid_check(object):
     #TODO: Check if the input query species name is already in the database
 
-    def __init__(self,spec_name, database_user, database_password, local_Inparanoid_database_name, genome_file_name = "not_given"):
-        #######
+    def __init__(self,spec_name, database_user, database_password, local_Inparanoid_database_name, genome_file_name = 'None'):
+        """
         # Inputs:
-        #genome_file_name: name of the FASTA formatted file suitable for inparanoid input
-        #
+        genome_file_name: name of the FASTA formatted file suitable for inparanoid input
+        """
         self.spec_name_ = spec_name
         self.genome_file_name_ = genome_file_name
         self.database_user_ = database_user
         self.database_password_ = database_password
         self.local_inparanoid_ = local_Inparanoid_database_name
 
+        self.inparanoid_DB_connection = connector.connect(host="localhost",
+                 user = self.database_user_,
+                 passwd = self.database_password_,
+                 database=self.local_inparanoid_)
+
 
     def check_if_exists(self):
-        database_connection = connector.connect(host="localhost",
-                 user = self.database_user_,
-                 passwd = self.database_password_)
-        cursor = database_connection.cursor()
-        cursor.execute('USE ' + self.local_inparanoid_)
+
+        cursor = self.inparanoid_DB_connection.cursor()
 
         cursor.execute("SHOW TABLES LIKE " + "'" + self.spec_name_ + "_SC" + "'")
         result = cursor.fetchall()
@@ -41,14 +43,17 @@ class Inparanoid_check(object):
     ##########
 
     def run_inparanoid(self):
-        #os.system("sh utils/run_inparanoid.sh")
-        #TODO, first finilize the inparanoid bash script then complete it
+
         print("start running InParanoid")
         subprocess.check_call("./run_inparanoid.sh %s" %(str(self.genome_file_name_)), shell=True) # if not working consider passing shell= true
         print("done running InParanoid")
 
 
     def Inparanoid_Parser_(self):
+        """
+        For now this method assumes everything is run in current directory, we may
+        consider adding directory
+        """
         # This functions returns a python list that can be used for "Build_Orthologs_database"
         geneSpec1 = []
         geneSpec2 = []
@@ -86,21 +91,15 @@ class Inparanoid_check(object):
 
         return ret
 
-        #TODO, convert R code written by Shayan into a python method
-
     def Build_Orthologs_database(self, python_list_parsed):
-        database_connection = connector.connect(host="localhost",
-                 user = self.database_user_,
-                 passwd = self.database_password_)
-        cursor = database_connection.cursor()
-        cursor.execute('USE ' + self.local_inparanoid_)
-        cursor.execute('CREATE TABLE ' + self.spec_name_ + '_SC (' +  self.spec_name_ +  '_genes VARCHAR(200), SC_genes VARCHAR(200), Score_g1 DOUBLE(2,2), Score_g2 DOUBLE(2,2), Score_in INT(6))')
+        cursor = self.inparanoid_DB_connection.cursor()
+        cursor.execute('CREATE TABLE ' + self.spec_name_ + '_SC (' +  self.spec_name_ +  '_genes VARCHAR(200), SC_genes VARCHAR(200), Score_g1 DECIMAL(4,3), Score_g2 DECIMAL(4,3), Score_in INT(6))')
 
 
         for row in python_list_parsed:
             cursor.execute("INSERT INTO " + self.spec_name_ + '_SC (' + self.spec_name_ + "_genes, SC_genes, Score_g1, Score_g2, Score_in) VALUES(%s, %s, %s, %s, %s)", row)
 
-        database_connection.commit()
+        self.inparanoid_DB_connection.commit()
         cursor.close()
 
 #############################################################################
