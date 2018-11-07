@@ -25,16 +25,26 @@ def get_dict():
     return dict
 
 
-def connect_to_databse():
-    database_connection = connector.connect(host="localhost",user="root",passwd="wjt98")
+def create_databse(hst,usr,pswrd, SGD_dbName):
+    database_connection = connector.connect(host=hst,user=usr,passwd=pswrd)
     cursor = database_connection.cursor()
-    cursor.execute("CREATE DATABASE SGD")
-    return cursor
+    cursor.execute("CREATE DATABASE " + SGD_dbName)
+    #return cursor
 
 
-def write_to_database_pathway():
+def write_to_database_pathway(hst,usr,pswrd, SGD_dbName):
     ##TODO: DONE!!!!!!!!!!!!!!!!
     url = "https://downloads.yeastgenome.org/curation/literature/biochemical_pathways.tab"
+
+    database_connection = connector.connect(host=hst,user=usr,passwd=pswrd)
+    cursor = database_connection.cursor()
+    cursor.execute("USE " + SGD_dbName)
+    cursor.execute("SHOW TABLES LIKE 'biochemical_pathways'")
+    result = cursor.fetchall()
+    if (not result == []):
+        cursor.close()
+        return
+        #cursor.execute("DROP TABLE biochemical_pathways")
     csv = get_url_content(url)
     mapping = get_dict()
     data = []
@@ -45,10 +55,6 @@ def write_to_database_pathway():
             data.append(n+[""])
         else:
             data.append(n+[mapping[n[3].upper()]])
-    database_connection = connector.connect(host="localhost",user="root",passwd="wjt98")
-    cursor = database_connection.cursor()
-    cursor.execute("USE SGD")
-    cursor.execute("DROP TABLE biochemical_pathways")
     cursor.execute("CREATE TABLE biochemical_pathways (biochem_pathway VARCHAR(100), enzyme VARCHAR(100), EC_number VARCHAR(10), gene_name VARCHAR(10), "
                    "reference VARCHAR(300), SGDID VARCHAR(10))")
     for row in data:
@@ -58,17 +64,23 @@ def write_to_database_pathway():
     cursor.close()
 
 
-def write_to_database_gene_association():
+def write_to_database_gene_association(hst,usr,pswrd, SGD_dbName):
     ##TODO: DONE!!!!!!!!!!!!!!!!
-    database_connection = connector.connect(host="localhost",user="root",passwd="wjt98")
+    database_connection = connector.connect(host=hst,user=usr,passwd=pswrd)
     cursor = database_connection.cursor()
+
+    cursor.execute("USE " + SGD_dbName)
+    cursor.execute("SHOW TABLES LIKE 'gene_association'")
+    result = cursor.fetchall()
+    if (not result == []):
+        cursor.close()
+        return
+        #cursor.execute("DROP TABLE gene_association")
     data = []
     with open ("gene_association.sgd",'r') as f:
         lines = f.readlines()[8:]
         for line in lines:
             data.append(line.strip().split('\t'))
-    cursor.execute("USE SGD")
-    cursor.execute("DROP TABLE gene_association")
     cursor.execute('CREATE TABLE gene_association (DB VARCHAR(5), SGDID VARCHAR(10), '
                    'Symbol VARCHAR(20), Qualifier VARCHAR(35), GO_Id VARCHAR(12), DB_Reference VARCHAR(100), '
                    'Evidence VARCHAR(5), With_or_From VARCHAR(550), Aspect VARCHAR(5), GeneProductName VARCHAR(100), '
@@ -82,14 +94,20 @@ def write_to_database_gene_association():
     cursor.close()
 
 
-def write_to_database_gene_literature():
+def write_to_database_gene_literature(hst,usr,pswrd, SGD_dbName):
     ##TODO: DONE!!!!!!!!!!!!!!!!
+
+    database_connection = connector.connect(host=hst,user=usr,passwd=pswrd)
+    cursor = database_connection.cursor()
+    cursor.execute("USE " + SGD_dbName)
+    cursor.execute("SHOW TABLES LIKE 'gene_literature'")
+    result = cursor.fetchall()
+    if (not result == []):
+        cursor.close()
+        return        
+        #cursor.execute("DROP TABLE gene_literature")
     url = "https://downloads.yeastgenome.org/curation/literature/gene_literature.tab"
     data = get_url_content(url)
-    database_connection = connector.connect(host="localhost",user="root",passwd="wjt98")
-    cursor = database_connection.cursor()
-    cursor.execute("USE SGD")
-    cursor.execute("DROP TABLE gene_literature")
     cursor.execute('CREATE TABLE gene_literature (PubMed_ID VARCHAR(9), Citation VARCHAR(500), '
                    'Gene_name VARCHAR(20), Feature VARCHAR(35), literature_topic VARCHAR(450), SGDID VARCHAR(10))')
     for row in data:
@@ -99,14 +117,20 @@ def write_to_database_gene_literature():
     cursor.close()
 
 
-def write_to_database_go_slim_mapping():
+def write_to_database_go_slim_mapping(hst,usr,pswrd, SGD_dbName):
     ##TODO: DONE!!!!!!!!!!!!!!!!
+
+    database_connection = connector.connect(host=hst,user=usr,passwd=pswrd)
+    cursor = database_connection.cursor()
+    cursor.execute("USE " + SGD_dbName)
+    cursor.execute("SHOW TABLES LIKE 'go_slim_mapping'")
+    result = cursor.fetchall()
+    if (not result == []):
+        cursor.close()
+        return
+        #cursor.execute("DROP TABLE go_slim_mapping")
     url = "https://downloads.yeastgenome.org/curation/literature/go_slim_mapping.tab"
     data = get_url_content(url)
-    database_connection = connector.connect(host="localhost",user="root",passwd="wjt98")
-    cursor = database_connection.cursor()
-    cursor.execute("USE SGD")
-    cursor.execute('DROP TABLE go_slim_mapping')
     cursor.execute('CREATE TABLE go_slim_mapping (ORF VARCHAR(15), Gene VARCHAR(15), SGDID VARCHAR(10), GO_Aspect VARCHAR(1), GO_Slim_term VARCHAR(100), GOID VARCHAR(10), Feature_type VARCHAR(30))')
     for row in data:
         cursor.execute("INSERT INTO go_slim_mapping(ORF , Gene , SGDID , GO_Aspect , GO_Slim_term, GOID, Feature_type) VALUES(%s, %s, %s, %s, %s, %s, %s)", row[0:7])
@@ -114,8 +138,18 @@ def write_to_database_go_slim_mapping():
     cursor.close()
 
 
-def write_to_database_interaction_data():
+def write_to_database_interaction_data(hst,usr,pswrd, SGD_dbName):
     ##TODO: DONE!!!!!!!!!!!!!!!!
+
+    database_connection = connector.connect(host=hst,user=usr,passwd=pswrd)
+    cursor = database_connection.cursor()
+    cursor.execute("USE " + SGD_dbName)
+    cursor.execute("SHOW TABLES LIKE 'interaction_data'")
+    result = cursor.fetchall()
+    if (not result == []):
+        cursor.close()
+        return
+        #cursor.execute("DROP TABLE interaction_data")
     url = "https://downloads.yeastgenome.org/curation/literature/interaction_data.tab"
     csv = get_url_content(url)
     data = []
@@ -125,10 +159,6 @@ def write_to_database_interaction_data():
         pmid = ids[1].split(':')[1]
         data.append(n[:10]+[sgd] + [pmid]+n[11:])
     print("Done getting data.")
-    database_connection = connector.connect(host="localhost",user="root",passwd="wjt98")
-    cursor = database_connection.cursor()
-    cursor.execute("USE SGD")
-    cursor.execute('DROP TABLE interaction_data')
     cursor.execute("CREATE TABLE interaction_data (Feature_Name_Bait VARCHAR(10), Std_Gene_Name_Bait VARCHAR(10), Feature_name_Hit VARCHAR(10), Std_Gene_Name_Hit VARCHAR(50), "
                    "Experiment_Type VARCHAR(50), Genetic_Physical_Interaction VARCHAR(50), Source VARCHAR(50), Manually_curated VARCHAR(50), Notes VARCHAR(400),"
                    "Phenotype VARCHAR(50), SGDID VARCHAR(10), PubMed_ID VARCHAR(10), Citation VARCHAR(500))")
@@ -141,14 +171,20 @@ def write_to_database_interaction_data():
     cursor.close()
 
 
-def write_to_database_phenotype_data():
+def write_to_database_phenotype_data(hst,usr,pswrd, SGD_dbName):
     ##TODO: DONE!!!!!!!!!!!!!!!!
     url = "https://downloads.yeastgenome.org/curation/literature/phenotype_data.tab"
-    data = get_url_content(url)
-    database_connection = connector.connect(host="localhost",user="root",passwd="wjt98")
+
+    database_connection = connector.connect(host=hst,user=usr,passwd=pswrd)
     cursor = database_connection.cursor()
-    cursor.execute("USE SGD")
-    cursor.execute('DROP TABLE phenotype_data')
+    cursor.execute("USE " + SGD_dbName)
+    cursor.execute("SHOW TABLES LIKE 'phenotype_data'")
+    result = cursor.fetchall()
+    if (not result == []):
+        cursor.close()
+        return
+        #cursor.execute("DROP TABLE phenotype_data")
+    data = get_url_content(url)
     cursor.execute('CREATE TABLE phenotype_data (Feature_Name VARCHAR(10), Feature_Type VARCHAR(50), Gene_Name VARCHAR(10), SGDID VARCHAR(10), '
                    'Reference VARCHAR(40), Experiment_Type VARCHAR(300), Mutant_Type VARCHAR(50), Allele VARCHAR(200), Strain_Background VARCHAR(100), '
                    'Phenotype VARCHAR(100), Chemical VARCHAR(200), Observed_condition VARCHAR(200), Details VARCHAR(400), Reporter VARCHAR(200))')
@@ -162,14 +198,19 @@ def write_to_database_phenotype_data():
     cursor.close()
 
 
-def write_to_database_sgd_features():
+def write_to_database_sgd_features(hst,usr,pswrd, SGD_dbName):
     ##TODO: DONE!!!!!!!!!!!!!!!!
     url = "https://downloads.yeastgenome.org/curation/chromosomal_feature/SGD_features.tab"
     data = get_url_content(url)
-    database_connection = connector.connect(host="localhost",user="root",passwd="wjt98")
+    database_connection = connector.connect(host=hst,user=usr,passwd=pswrd)
     cursor = database_connection.cursor()
-    cursor.execute("USE SGD")
-    cursor.execute('DROP TABLE SGD_features')
+    cursor.execute("USE " + SGD_dbName)
+    cursor.execute("SHOW TABLES LIKE 'SGD_features'")
+    result = cursor.fetchall()
+    if (not result == []):
+        cursor.close()
+        return
+        #cursor.execute("DROP TABLE SGD_features")
     cursor.execute('CREATE TABLE SGD_features (SGDID VARCHAR(10), Feature_Type VARCHAR(50), Feature_qualifier VARCHAR(50), Feature_name VARCHAR(50), '
                    'Standard_gene_name VARCHAR(50), Alias VARCHAR(200), Parent_feature_name VARCHAR(20), 2nd_SGDID VARCHAR(100), Chromosome VARCHAR(30), '
                    'Start_coordinate VARCHAR(20), Stop_coordinate VARCHAR(20), Strand VARCHAR(20), Genetic_position VARCHAR(50), '
@@ -183,11 +224,27 @@ def write_to_database_sgd_features():
 
 
 if __name__ == "__main__":
-    #connect_to_databse()
-    #write_to_database_pathway()
-    #write_to_database_gene_association()
-    #write_to_database_gene_literature()
-    #write_to_database_go_slim_mapping()
-    write_to_database_interaction_data()
-    #write_to_database_phenotype_data()
-    #write_to_database_sgd_features()
+    my_hst = "localhost"
+    my_usr = "root"
+    my_pass = "CAmysql2280225964"
+    my_SGD_dbName = "SGD"
+    create_db = False
+
+
+    if create_db:
+        create_databse(my_hst, my_usr, my_pass, my_SGD_dbName)
+    
+    write_to_database_pathway(my_hst, my_usr, my_pass, my_SGD_dbName)
+    print "pathway DONE"
+    write_to_database_gene_association(my_hst, my_usr, my_pass, my_SGD_dbName)
+    print "gene_association DONE"
+    write_to_database_gene_literature(my_hst, my_usr, my_pass, my_SGD_dbName)
+    print "gene_literature DONE"
+    write_to_database_go_slim_mapping(my_hst, my_usr, my_pass, my_SGD_dbName)
+    print "go_slim_mapping DONE"
+    write_to_database_interaction_data(my_hst, my_usr, my_pass, my_SGD_dbName)
+    print "interaction_data DONE"
+    write_to_database_phenotype_data(my_hst, my_usr, my_pass, my_SGD_dbName)
+    print "phenotype_data DONE"
+    write_to_database_sgd_features(my_hst, my_usr, my_pass, my_SGD_dbName)
+    print "sgd_features DONE"
