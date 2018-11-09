@@ -1,4 +1,5 @@
 import numpy as np
+import pandas as pd
 import csv
 import mysql.connector as connector
 import os
@@ -8,14 +9,13 @@ from inparanoid_check import Inparanoid_check
 from query import Query
 
 
-# setting parameters to create the inparanoid_check object
-def encode_to_string(encode_tuple_list): # This function can be removed (replaced where it's referenced), or generalized, the current format is too spcific
-    # This function converts the tuple list output of fetchall() to a list of tuples of str
+def encode_to_string(encode_tuple_list): 
     aa_char_list = []
     for x in encode_tuple_list:
         aa_char_list.append([i.encode() for i in x])
     return(aa_char_list)
 
+# setting parameters to create the inparanoid_check object
 my_local_ortho_database = 'Inparanoid'
 my_user_name = "root"
 my_password = "CAmysql2280225964"
@@ -67,10 +67,25 @@ for i in range(len(my_query_res)):
     with open('results_'+ my_spec_name + '_' + str(i) + '.txt', 'w') as file:
         file.writelines('\t'.join(x) + '\n' for x in string_res)
 
-
+string_res = []
 for i in range(len(my_query_res_conc)):
-    string_res = encode_to_string(my_query_res_conc[i])
+    string_res[i] = encode_to_string(my_query_res_conc[i])
     with open('results_conc_'+ my_spec_name + '_' + str(i) + '.txt', 'w') as file:
-        file.writelines('\t'.join(x) + '\n' for x in string_res)
+        file.writelines('\t'.join(x) + '\n' for x in string_res[i])
+
+string_res = [x for x in string_res if len(x) > 0]
+aa = []
+for i in range(len(string_res)):
+    aa.append(pd.DataFrame(string_res[i]))
+aaa = reduce(lambda x, y: pd.merge(x, y, on = [0, 1, 2, 3]), aa)
+
+writer = ExcelWriter('output_full.xlsx')
+aaa.to_excel(writer,'Sheet1',index=False)
+writer.save()
+
+
+
+
+
 
 
