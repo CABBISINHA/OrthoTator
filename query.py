@@ -3,6 +3,7 @@ import mysql.connector as connector
 import os
 import sys
 import subprocess
+import pandas as pd
 
 class Query:
     def __init__(self, species, gene_list, annot_list, inparanoid_dbName, SGD_dbName, db_user_name, db_password):
@@ -34,8 +35,8 @@ class Query:
         # Check if all requested annotations are in the database
         for c_annot in self.annlist:
             if(not c_annot in self.all_annots):
-                print " annotation " + c_annot +  " not present in the database " 
-                print " available annotations: " 
+                print " annotation " + c_annot +  " not present in the database "
+                print " available annotations: "
                 print set(self.all_annots)
                 #return
                 sys.exit()
@@ -45,16 +46,16 @@ class Query:
             if(not c_gene in self.all_genes):
                 print "Gene named " +c_gene + " is not present in the orthology database. This gene will be removed from the query."
                 f_gene_list.remove(c_gene)
-         
+
         if(len(f_gene_list) == 0):
             print ("none of the query genes were present in orthology database.")
-            print " available genes: " 
+            print " available genes: "
             print self.all_genes
             sys.exit()
         self.glist = f_gene_list
-        print self.glist
+        #print self.glist
 
-            
+
     def gene_list_to_char(self, list_of_genes):
         my_char="("
         for gene in list_of_genes:
@@ -182,8 +183,8 @@ class Query:
         cursor.execute("CREATE TABLE cur_qu2ORF2SGD_table SELECT " + (self.spc+ '_genes') + ', ORF, '+ 'SGDID' + " FROM  cur_qu2ORF_table, ORF2SGD  WHERE cur_qu2ORF_table.SC_genes = ORF2SGD.ORF")
         cursor.execute("CREATE TABLE cur_qu2ORF2SGD_description_table SELECT " + (self.spc+ '_genes') + ', ORF, '+ 'cur_qu2ORF2SGD_table.SGDID, ' + "Description" +" FROM  cur_qu2ORF2SGD_table, SGD_features  WHERE cur_qu2ORF2SGD_table.SGDID = SGD_features.SGDID")
         cursor.close()
-        
-    
+
+
     def set_annot_dict(self): #Payam correct db name
         """
         sets a dictonary that maps annotation to all tables contain that annotation
@@ -246,11 +247,62 @@ class Query:
                 cursor.execute("SELECT " + self.spc+ '_genes' + ', ORF, ' + 'SGDID, ' + ' Description, ' + "GROUP_CONCAT("+ cur_query + ")" + " FROM temp_table GROUP BY " + self.spc+ '_genes, ' + ' ORF, ' + 'SGDID, ' + ' Description ;')
                 all_query_conc.append(cursor.fetchall())
                 self.table_drop('temp_table')
-                
-        
+
+
         cursor.execute("DROP TABLE cur_table_query_table")
         cursor.execute("DROP TABLE cur_qu2ORF2SGD_table")
         cursor.execute("DROP TABLE cur_qu2ORF_table")
         cursor.execute("DROP TABLE cur_qu2ORF2SGD_description_table")
         cursor.close()
         return all_query_res, all_query_conc
+
+    def do_query_print(self):
+        """
+        This is an alternative method to do_query, it's particulary useful for presentation purposes.
+        Only uses SGD-DB tables and ortholog tables. Consider merging/replacing with do_query.
+
+        Returns a list of pandas dataframe, one per each query gene.
+
+        In cases of having annotations appearing in multiple tables, for now it just fetchs one of them.
+        This may raise error in sql syntax, this should be fixed by considering all tables, and also adding
+        a GROUP_BY command to keep track of tables --> This is particulary important if we decided to replace this
+        with do_query() function
+
+        Note that it summarizes description for presentation purposes (commented by **## below). Make sure to fix it
+        if we decided to replace with do_query()
+        """
+        cursor = self.SGD_DB_connection.cursor()
+
+        join_statement = "INNER JOIN "
+        annots_to_fetch_char = ""
+        tablesSet = set()
+        columns = ['SGDID', 'Description']
+        for query in self.annlist:
+            if not {self.annot_dict[query][0]}.issubset(tablesSet) and self.annot_dict[query][0] != "SGD_features":
+                tablesSet.add(self.annot_dict[query][0]) # for now just 1 table is considered
+                join_statement += self.annot_dict[query][0]
+                join_statement += " ON " + self.annot_dict[query][0] + ".SGDID = "
+                join_statement += "SGD_features.SGDID INNER JOIN "
+
+            annots_to_fetch_char += query
+            annots_to_fetch_char += ", "
+            columns.append(query)
+        join_statement = join_statement[:-12]
+        annots_to_fetch_char = annots_to_fetch_char[:-2]
+        ret = [] # return a list of pandas data frame, 1 per each gene in gene_list
+
+        for curr_gene in self.glist:
+            homologs_SGDID = self.ortho_map[curr_gene]['SGDID']
+            my_query = " WHERE SGD_features.SGDID IN " +  self.gene_list_to_char(homologs_SGDID) +";"
+            cursor.execute('SELECT SGD_features.SGDID, Description, ' + annots_to_fetch_char + " FROM SGD_features " + join_statement + my_query)
+            output = cursor.fetchall()
+
+            output_as_array = []
+            for line in output:
+                currLine = [t.encode().split(',')[0] for t in line]
+                output_as_array.append(currLine)
+            df = pd.DataFrame(data = output_as_array, columns = columns)
+            ret.append(df)
+
+        cursor.close()
+        return ret
