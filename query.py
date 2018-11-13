@@ -162,6 +162,13 @@ class Query:
         cursor.close()
         return ret[0][0].encode()
 
+    def convert_to_ORF(self, input_SGDID):
+        cursor = self.SGD_DB_connection.cursor()
+        cursor.execute("SELECT ORF FROM ORF2SGD WHERE SGDID = '" + input_SGDID + "';")
+        ret = cursor.fetchall()
+        cursor.close()
+        return ret[0][0].encode()
+
     def create_cur_qu2ORF_table(self):
         """
         creates a temporary table 'cur_qu2ORF_table' that contains the query genes and their corresponding ortholog ORF
@@ -261,14 +268,14 @@ class Query:
         This is an alternative method to do_query, it's particulary useful for presentation purposes.
         Only uses SGD-DB tables and ortholog tables. Consider merging/replacing with do_query.
 
-        Returns a list of pandas dataframe, one per each query gene.
+        Returns a pandas dataframe.
 
         In cases of having annotations appearing in multiple tables, for now it just fetchs one of them.
         This may raise error in sql syntax, this should be fixed by considering all tables, and also adding
         a GROUP_BY command to keep track of tables --> This is particulary important if we decided to replace this
         with do_query() function
 
-        Note that it summarizes description for presentation purposes (commented by **## below). Make sure to fix it
+        Note that it summarizes description for presentation purposes. Make sure to fix it
         if we decided to replace with do_query()
         """
         cursor = self.SGD_DB_connection.cursor()
@@ -291,18 +298,25 @@ class Query:
         annots_to_fetch_char = annots_to_fetch_char[:-2]
         ret = [] # return a list of pandas data frame, 1 per each gene in gene_list
 
+        columns.insert(0,'Query Gene')
+        output_as_array = []
         for curr_gene in self.glist:
             homologs_SGDID = self.ortho_map[curr_gene]['SGDID']
             my_query = " WHERE SGD_features.SGDID IN " +  self.gene_list_to_char(homologs_SGDID) +";"
             cursor.execute('SELECT SGD_features.SGDID, Description, ' + annots_to_fetch_char + " FROM SGD_features " + join_statement + my_query)
             output = cursor.fetchall()
 
-            output_as_array = []
             for line in output:
-                currLine = [t.encode().split(',')[0] for t in line]
+                currLine = []
+                for t in line:
+                    if len(t.encode()) > 20:
+                        t = t[0:15] + " ..."
+                    currLine.append(t)
+                currLine[0] = self.convert_to_ORF(currLine[0])
+                #currLine[1] = currLine[1][0:20] + " ..."
+                currLine.insert(0, curr_gene[0:15]+" ...")
                 output_as_array.append(currLine)
-            df = pd.DataFrame(data = output_as_array, columns = columns)
-            ret.append(df)
-
+        columns[1] = 'ORF'
+        df = pd.DataFrame(data = output_as_array, columns = columns)
         cursor.close()
-        return ret
+        return df
